@@ -1,4 +1,4 @@
-# my-global-skills
+# skills
 
 我的 Claude Code 與 Gemini（Antigravity）全域 skills 備份，附一鍵同步腳本。
 
@@ -17,15 +17,15 @@
 ## 在新電腦同步（Windows）
 
 ```powershell
-git clone https://github.com/wkai2573/my-global-skills.git $HOME\my-global-skills
-& $HOME\my-global-skills\install.ps1
+git clone https://github.com/wkai2573/skills.git $HOME\skills
+& $HOME\skills\install.ps1
 ```
 
 ## 在新電腦同步（macOS / Linux / WSL）
 
 ```bash
-git clone https://github.com/wkai2573/my-global-skills.git ~/my-global-skills
-bash ~/my-global-skills/install.sh
+git clone https://github.com/wkai2573/skills.git ~/skills
+bash ~/skills/install.sh
 ```
 
 腳本做的事：
@@ -41,13 +41,13 @@ bash ~/my-global-skills/install.sh
 **其他電腦取得最新版**（因為是連結，pull 完就生效）：
 
 ```bash
-git -C ~/my-global-skills pull
+git -C ~/skills pull
 ```
 
 **在原始電腦改了 skill 要推上去**：
 
 ```powershell
-cd $HOME\my-global-skills        # 或你 clone 的位置
+cd $HOME\skills        # 或你 clone 的位置
 .\export.ps1                     # 把本機改動複製回 repo
 git add -A; git commit -m "更新 skills"; git push
 ```
