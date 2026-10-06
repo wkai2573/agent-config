@@ -13,7 +13,7 @@ description: 生圖／畫圖／產生圖片／做插圖、頭像、桌布、海�
 2. **執行腳本**（PowerShell，每張圖跑一次；要多張就跑多次，可以平行執行）：
 
    ```powershell
-   pwsh -NoProfile -File "C:\Users\admin\.claude\skills\generate-image\scripts\generate-image.ps1" -Prompt "<英文描述>" -OutDir "<輸出資料夾>" -Name "<英文檔名，不含副檔名>"
+   pwsh -NoProfile -File "$HOME\.claude\skills\generate-image\scripts\generate-image.ps1" -Prompt "<英文描述>" -OutDir "<輸出資料夾>" -Name "<英文檔名，不含副檔名>"
    ```
 
    - `-OutDir` 預設為目前工作資料夾；使用者有指定位置就用使用者的。
