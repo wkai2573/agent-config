@@ -25,6 +25,58 @@ for d in "$repo"/skills/*/; do
   echo "  已連結 $name"
 done
 
+# 全域設定檔：以「複製」方式放到家目錄；內容不同時，先把舊檔備份再覆蓋
+cfg_backup="$HOME/.claude/config-backup"
+copy_config() {
+  local from="$repo/$1" to="$2"
+  [ -f "$from" ] || return 0
+  if [ -f "$to" ]; then
+    cmp -s "$from" "$to" && return 0
+    mkdir -p "$cfg_backup"
+    cp "$to" "$cfg_backup/$(basename "$to").$(date +%Y%m%d%H%M%S)"
+    echo "  已備份既有的 $(basename "$to") -> $cfg_backup"
+  fi
+  mkdir -p "$(dirname "$to")"
+  cp "$from" "$to"
+  echo "  已更新 $(basename "$to")"
+}
+copy_config config/AGENTS.md "$HOME/AGENTS.md"
+copy_config config/GEMINI.md "$HOME/GEMINI.md"
+copy_config config/claude/CLAUDE.md "$HOME/.claude/CLAUDE.md"
+copy_config config/claude/settings.json "$HOME/.claude/settings.json"
+
+# 以符號連結同步的資料夾：memory（家目錄專案的）與 mods
+link_dir() {
+  local target="$1" link="$2"
+  mkdir -p "$(dirname "$link")"
+  if [ -L "$link" ]; then
+    rm "$link"
+  elif [ -d "$link" ]; then
+    if [ -z "$(ls -A "$link")" ]; then
+      rmdir "$link"
+    else
+      mkdir -p "$cfg_backup"
+      mv "$link" "$cfg_backup/$(basename "$link").$(date +%Y%m%d%H%M%S)"
+      echo "  已備份既有的 $link -> $cfg_backup"
+    fi
+  fi
+  ln -s "$target" "$link"
+}
+
+# memory：Claude Code 以專案路徑編碼成資料夾名（非英數字元換成 -），這裡只處理家目錄那一個
+home_project="$(printf '%s' "$HOME" | sed 's/[^A-Za-z0-9]/-/g')"
+mem_link="$HOME/.claude/projects/$home_project/memory"
+link_dir "$repo/memory" "$mem_link"
+echo "  已連結 memory -> $mem_link"
+
+# mods：每個子資料夾連結到 ~/.claude/dev-mods/synced/<名稱>
+for d in "$repo"/mods/*/; do
+  [ -d "$d" ] || continue
+  name="$(basename "$d")"
+  link_dir "${d%/}" "$HOME/.claude/dev-mods/synced/$name"
+  echo "  已連結 mod $name"
+done
+
 # Gemini（Antigravity）：讓它也讀 ~/.claude/skills
 if [ ! -d "$(dirname "$gemini_cfg")" ]; then
   echo "（找不到 $(dirname "$gemini_cfg")，略過 Gemini 設定；之後安裝 Gemini 再重跑本腳本即可）"

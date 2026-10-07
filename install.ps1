@@ -30,6 +30,62 @@ foreach ($d in Get-ChildItem $src -Directory) {
     Write-Host "  已連結 $($d.Name)"
 }
 
+# 全域設定檔：以「複製」方式放到家目錄；內容不同時，先把舊檔備份再覆蓋
+$cfgBackup = Join-Path $HOME '.claude\config-backup'
+$configMap = @(
+    @{ From = 'config\AGENTS.md';           To = (Join-Path $HOME 'AGENTS.md') },
+    @{ From = 'config\GEMINI.md';           To = (Join-Path $HOME 'GEMINI.md') },
+    @{ From = 'config\claude\CLAUDE.md';    To = (Join-Path $HOME '.claude\CLAUDE.md') },
+    @{ From = 'config\claude\settings.json'; To = (Join-Path $HOME '.claude\settings.json') }
+)
+foreach ($m in $configMap) {
+    $from = Join-Path $repo $m.From
+    if (-not (Test-Path $from)) { continue }
+    $to = $m.To
+    if (Test-Path $to) {
+        if ((Get-FileHash $from).Hash -eq (Get-FileHash $to).Hash) { continue }
+        New-Item -ItemType Directory -Force $cfgBackup | Out-Null
+        $bak = Join-Path $cfgBackup ("{0}.{1}" -f (Split-Path $to -Leaf), (Get-Date -Format 'yyyyMMddHHmmss'))
+        Copy-Item $to $bak
+        Write-Host "  已備份既有的 $(Split-Path $to -Leaf) -> $bak"
+    }
+    New-Item -ItemType Directory -Force (Split-Path $to -Parent) | Out-Null
+    Copy-Item $from $to -Force
+    Write-Host "  已更新 $(Split-Path $to -Leaf)"
+}
+
+# 以「連結」方式同步的資料夾：memory（家目錄專案的）與 mods
+function Link-Dir($target, $link, $backupRoot) {
+    New-Item -ItemType Directory -Force (Split-Path $link -Parent) | Out-Null
+    $item = Get-Item $link -Force -ErrorAction SilentlyContinue
+    if ($item) {
+        if ($item.LinkType) {
+            [System.IO.Directory]::Delete($link)
+        } elseif (-not (Get-ChildItem $link -Force)) {
+            Remove-Item $link        # 空資料夾，直接換成連結
+        } else {
+            New-Item -ItemType Directory -Force $backupRoot | Out-Null
+            $bak = Join-Path $backupRoot ("{0}.{1}" -f (Split-Path $link -Leaf), (Get-Date -Format 'yyyyMMddHHmmss'))
+            Move-Item $link $bak
+            Write-Host "  已備份既有的 $link -> $bak"
+        }
+    }
+    New-Item -ItemType Junction -Path $link -Target $target | Out-Null
+}
+
+# memory：Claude Code 的 memory 以專案路徑編碼成資料夾名，這裡只處理家目錄那一個
+$homeProject = ($HOME -replace '[^A-Za-z0-9]', '-')
+$memLink = Join-Path $HOME ".claude\projects\$homeProject\memory"
+Link-Dir (Join-Path $repo 'memory') $memLink $cfgBackup
+Write-Host "  已連結 memory -> $memLink"
+
+# mods：每個子資料夾連結到 ~/.claude/dev-mods/synced/<名稱>
+$modsSrc = Join-Path $repo 'mods'
+foreach ($d in Get-ChildItem $modsSrc -Directory -ErrorAction SilentlyContinue) {
+    Link-Dir $d.FullName (Join-Path $HOME ".claude\dev-mods\synced\$($d.Name)") $cfgBackup
+    Write-Host "  已連結 mod $($d.Name)"
+}
+
 # Gemini（Antigravity）：讓它也讀 ~/.claude/skills
 $geminiDir = Split-Path -Parent $GeminiConfig
 if (-not (Test-Path $geminiDir)) {
