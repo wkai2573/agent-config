@@ -1,7 +1,7 @@
 ---
 name: mechanical-check
 description: 執行機械性檢查並回報結果。程式修改完成後，需要跑測試、型別檢查、lint、建置，或核對 git diff 是否超出預期範圍時，主動委派給此 subagent。只負責執行與回報，不修改任何檔案，也不做設計或邏輯判斷。
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, PowerShell
 model: haiku
 ---
 
