@@ -94,11 +94,33 @@ if (Test-Path $agentsSrc) {
     Write-Host "  已連結 agents -> $agentsLink"
 }
 
-# Gemini（Antigravity）：讓它也讀 ~/.claude/skills
+# Gemini（Antigravity）：連結到 ~/.gemini/config/skills 與 ~/.agents/skills
+$geminiSkillsDir = Join-Path $HOME '.gemini\config\skills'
+$agentsSkillsDir = Join-Path $HOME '.agents\skills'
+New-Item -ItemType Directory -Force $geminiSkillsDir | Out-Null
+New-Item -ItemType Directory -Force $agentsSkillsDir | Out-Null
+
+foreach ($d in Get-ChildItem $src -Directory) {
+    # 連結到 ~/.gemini/config/skills
+    $targetG = Join-Path $geminiSkillsDir $d.Name
+    $itemG = Get-Item $targetG -Force -ErrorAction SilentlyContinue
+    if ($itemG) {
+        if ($itemG.LinkType) { [System.IO.Directory]::Delete($targetG) }
+    }
+    New-Item -ItemType Junction -Path $targetG -Target $d.FullName | Out-Null
+
+    # 連結到 ~/.agents/skills
+    $targetA = Join-Path $agentsSkillsDir $d.Name
+    $itemA = Get-Item $targetA -Force -ErrorAction SilentlyContinue
+    if ($itemA) {
+        if ($itemA.LinkType) { [System.IO.Directory]::Delete($targetA) }
+    }
+    New-Item -ItemType Junction -Path $targetA -Target $d.FullName | Out-Null
+}
+Write-Host "  已連結 skills 至 Gemini / Antigravity"
+
 $geminiDir = Split-Path -Parent $GeminiConfig
-if (-not (Test-Path $geminiDir)) {
-    Write-Host "（找不到 $geminiDir，略過 Gemini 設定；之後安裝 Gemini 再重跑本腳本即可）"
-} else {
+if (Test-Path $geminiDir) {
     $claudePath = $ClaudeDir -replace '\\', '/'
     $json = if (Test-Path $GeminiConfig) { Get-Content $GeminiConfig -Raw | ConvertFrom-Json } else { [pscustomobject]@{ entries = @() } }
     $entries = @($json.entries)
@@ -108,8 +130,6 @@ if (-not (Test-Path $geminiDir)) {
         $text = $json | ConvertTo-Json -Depth 5
         [System.IO.File]::WriteAllText($GeminiConfig, $text, (New-Object System.Text.UTF8Encoding $false))
         Write-Host "  已在 Gemini 設定加入 $claudePath"
-    } else {
-        Write-Host "  Gemini 設定已包含 $claudePath，不需變更"
     }
 }
 Write-Host "完成。重開 Claude Code / Gemini 即可看到 skills。"
