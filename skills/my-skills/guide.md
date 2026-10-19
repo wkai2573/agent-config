@@ -20,6 +20,15 @@
 - 不必走完整條，哪一步不需要就略過
 - 想看某個 skill 怎麼寫的：/my-skills 名稱（例如 /my-skills grill-me）
 
+自動委派（subagent，不是 skill，所以不會出現在上面的清單）
+- mechanical-check：改完程式後的機械性檢查，固定用 Haiku 跑
+- 用途：跑測試、型別檢查、lint、建置，並核對 git diff 有沒有超出預期範圍
+- 為什麼：這些輸出又長又雜，交給便宜的小模型吸收，主對話只收到精簡的失敗清單，省 token
+- 怎麼用：不用輸入指令，Claude 改完程式後會自己判斷要不要委派；也可以直接說「用 mechanical-check 跑一次檢查」
+- 它只回報，不修改任何檔案；失敗要不要修、怎麼修，仍由你正在用的 Sonnet 或 Opus 決定
+- 第一次用時看輸出，確認那一步有顯示委派給 mechanical-check；小任務、輸出很短時，直接跑可能比委派更省
+- 檔案位置：~/.claude/agents/mechanical-check.md，想改規則直接編輯那個檔案，改完要重開對話才會載入
+
 接手既有專案時（照順序做一次）
 
 1. /setup-matt-pocock-skills

@@ -1,4 +1,4 @@
-# 把這台電腦的全域設定複製回 repo：skills、AGENTS.md / GEMINI.md / CLAUDE.md / settings.json、memory、mods。
+# 把這台電腦的全域設定複製回 repo：skills、AGENTS.md / GEMINI.md / CLAUDE.md / settings.json、memory、agents、mods。
 # 排除 synced、.trash 與已是連結的項目。用在原始那台電腦：改完後執行，再 git add / commit / push。
 param([string]$ClaudeDir = (Join-Path $HOME '.claude\skills'))
 $ErrorActionPreference = 'Stop'
@@ -34,6 +34,14 @@ $memItem = Get-Item $memDir -Force -ErrorAction SilentlyContinue
 if ($memItem -and -not $memItem.LinkType) {
     robocopy $memDir (Join-Path $repo 'memory') /MIR /XF .gitkeep /NFL /NDL /NJH /NJS | Out-Null
     Write-Host "  已更新 memory"
+}
+
+# agents：自訂 subagent（已是連結就略過）
+$agentsDir = Join-Path $HOME '.claude\agents'
+$agentsItem = Get-Item $agentsDir -Force -ErrorAction SilentlyContinue
+if ($agentsItem -and -not $agentsItem.LinkType) {
+    robocopy $agentsDir (Join-Path $repo 'agents') /MIR /XF .gitkeep /NFL /NDL /NJH /NJS | Out-Null
+    Write-Host "  已更新 agents"
 }
 
 # mods：dev-mods 底下每個工作階段資料夾裡的 mod（排除連結與引擎產生的 types）

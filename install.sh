@@ -77,6 +77,12 @@ for d in "$repo"/mods/*/; do
   echo "  已連結 mod $name"
 done
 
+# agents：自訂 subagent，整個資料夾連結到 ~/.claude/agents
+if [ -d "$repo/agents" ]; then
+  link_dir "$repo/agents" "$HOME/.claude/agents"
+  echo "  已連結 agents -> $HOME/.claude/agents"
+fi
+
 # Gemini（Antigravity）：讓它也讀 ~/.claude/skills
 if [ ! -d "$(dirname "$gemini_cfg")" ]; then
   echo "（找不到 $(dirname "$gemini_cfg")，略過 Gemini 設定；之後安裝 Gemini 再重跑本腳本即可）"

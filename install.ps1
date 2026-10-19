@@ -86,6 +86,14 @@ foreach ($d in Get-ChildItem $modsSrc -Directory -ErrorAction SilentlyContinue) 
     Write-Host "  已連結 mod $($d.Name)"
 }
 
+# agents：自訂 subagent，整個資料夾連結到 ~/.claude/agents
+$agentsSrc = Join-Path $repo 'agents'
+if (Test-Path $agentsSrc) {
+    $agentsLink = Join-Path $HOME '.claude\agents'
+    Link-Dir $agentsSrc $agentsLink $cfgBackup
+    Write-Host "  已連結 agents -> $agentsLink"
+}
+
 # Gemini（Antigravity）：讓它也讀 ~/.claude/skills
 $geminiDir = Split-Path -Parent $GeminiConfig
 if (-not (Test-Path $geminiDir)) {
