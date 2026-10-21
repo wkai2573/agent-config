@@ -15,4 +15,6 @@
 4. **Git Commit 留言**：
    - 所有的 Git commit 提交留言一律使用繁體中文。若使用 Conventional Commits 類型前綴，前綴後方的說明內容必須為繁體中文。
 
+5. **套件管理與執行環境**：
+   - 一律使用 bun 取代 npm，安裝套件用 `bun add` 與 `bun install`，執行腳本用 `bun run`，執行套件提供的指令用 `bunx`。
 
