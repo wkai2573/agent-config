@@ -107,7 +107,8 @@ foreach ($d in Get-ChildItem $src -Directory) {
     if ($itemG) {
         if ($itemG.LinkType) { [System.IO.Directory]::Delete($targetG) }
     }
-    New-Item -ItemType Junction -Path $targetG -Target $d.FullName | Out-Null
+    # agy 1.4.4 起不跟隨 junction，這裡必須用符號連結（需開啟 Windows 開發人員模式或管理員權限）
+    New-Item -ItemType SymbolicLink -Path $targetG -Target $d.FullName | Out-Null
 
     # 連結到 ~/.agents/skills
     $targetA = Join-Path $agentsSkillsDir $d.Name
@@ -115,7 +116,7 @@ foreach ($d in Get-ChildItem $src -Directory) {
     if ($itemA) {
         if ($itemA.LinkType) { [System.IO.Directory]::Delete($targetA) }
     }
-    New-Item -ItemType Junction -Path $targetA -Target $d.FullName | Out-Null
+    New-Item -ItemType SymbolicLink -Path $targetA -Target $d.FullName | Out-Null
 }
 Write-Host "  已連結 skills 至 Gemini / Antigravity"
 
