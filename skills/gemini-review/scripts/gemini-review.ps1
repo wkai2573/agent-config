@@ -26,6 +26,10 @@ if ($LASTEXITCODE -ne 0 -or -not $root) {
 
 # Tracked changes (staged + unstaged) against Base, then untracked files appended as new files
 $diff = (git -C $root diff $Base --no-color) -join "`n"
+if ($LASTEXITCODE -ne 0) {
+    Write-Output "REVIEW_FAILED: git diff failed for base '$Base'"
+    exit 1
+}
 $untracked = @(git -C $root ls-files --others --exclude-standard)
 $extra = New-Object System.Text.StringBuilder
 foreach ($rel in $untracked) {
@@ -58,7 +62,9 @@ Scope:
 - Report correctness problems only: logic errors, wrong conditions, off-by-one, null or undefined handling, broken error handling, race conditions, resource leaks, security issues, and behaviour that contradicts what the change clearly intends.
 - Do NOT report style, naming, formatting, missing comments, or refactoring and simplification suggestions.
 - You may read other files in the current working directory to confirm how changed code is used. Verify a suspicion against the real code before reporting it. Do not report something you could not confirm.
-- Do NOT modify any file, and do NOT run shell commands.
+- Do NOT modify any file, and do NOT run shell commands. Shell commands are denied in this session.
+- To inspect other files use only the read-only tools: view_file, grep_search, list_dir, find_by_name. Never use run_command, not even for git, grep, cat or Get-Content.
+- If any tool call is denied, do not retry it and do not stop. Continue with the read-only tools, or with the diff below, and always finish with the review in the required output format.
 $focusLine
 
 Output rules:
@@ -86,16 +92,23 @@ $promptFile = Join-Path $tmpDir ('review-' + [guid]::NewGuid().ToString('N') + '
 # The file path is the only thing on the command line, so diff size and quoting never matter
 $command = "Read the file $promptFile and carry out the code review it describes. Reply with the review only."
 
+# agy sometimes tries run_command anyway; headless mode denies it and the run ends with no review.
+# That is intermittent, so retry once before reporting failure.
+$maxAttempts = 2
 Push-Location $root
 try {
-    $output = agy -p $command --model $Model --add-dir $tmpDir --print-timeout "${TimeoutSec}s" 2>&1 | Out-String
-    $code = $LASTEXITCODE
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        $output = agy -p $command --model $Model --add-dir $tmpDir --print-timeout "${TimeoutSec}s" 2>&1 | Out-String
+        $code = $LASTEXITCODE
+        $denied = $output -match '^\s*jetski:.*(no output produced|auto-denied)'
+        if ($code -eq 0 -and $output.Trim() -and -not $denied) { break }
+    }
 } finally {
     Pop-Location
     Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
 }
 
-if ($code -ne 0 -or -not $output.Trim()) {
+if ($code -ne 0 -or -not $output.Trim() -or $denied) {
     Write-Output "REVIEW_FAILED (exit $code)"
     Write-Output $output
     exit 1

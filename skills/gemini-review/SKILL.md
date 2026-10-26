@@ -26,6 +26,7 @@ description: 用 Gemini 審查目前的 git 變更，只找正確性問題並回
    - `REVIEW_FAILED`：依後面附的原始輸出排除，不要假裝審查通過。
      - 找不到 `agy`：執行 `winget install --id Google.AntigravityCLI -e --accept-source-agreements --accept-package-agreements`
      - 登入過期或未登入：請使用者在自己的終端機執行 `agy` 完成 Google 帳號登入
+     - 輸出含 `jetski: no output produced` 或 `auto-denied`：agy 想執行 shell 指令被拒絕。腳本已自動重試一次仍失敗，直接再執行一次腳本即可，不要加 `--dangerously-skip-permissions`。
      - 逾時：改用 `-Model gemini-3.8-flash-low`，或用 `-Base` 縮小範圍後再跑
    - `[gemini-review ...]` 開頭：後面就是審查結果。
 
