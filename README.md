@@ -75,6 +75,12 @@ git -C $HOME\agent-config pull
 
 同一份設定檔不要在兩台電腦各改各的。標準流程是：改完 → `export.ps1` → push → 另一台 pull → install。若另一台已經有未上傳的修改就先跑 install，那些修改會被 repo 版本覆蓋，只能到 `~/.claude/config-backup/` 找回。
 
+## 歷史備註
+
+這個 repo 會在多台電腦間同步，已推送的歷史不要用 `reset`、`rebase`、`--force` 改寫，否則其他電腦下次 pull 會衝突。commit 訊息寫錯或內容混在一起時，一律用新的 commit 說明，不改舊的。
+
+- `eb91552`（訊息為「implement：完成後回到票券勾選項目並更新 Status」）同時包含 gemini-review 的改動：`gemini-review.ps1` 新增總期限、大小上限、`TOO_LARGE` 與 `REVIEW_TIMEOUT` 狀態，預設模型改為 `flash-low`，`SKILL.md` 改為背景執行。查 gemini-review 的歷史時請連同這個 commit 一起看。
+
 ## 注意
 
 - **memory**：Claude Code 的 memory 本來就是依專案分開存放，沒有真正的全域 memory，這裡只同步在家目錄開啟 Claude Code 時用的那一份。其餘專案的 memory 不同步。
