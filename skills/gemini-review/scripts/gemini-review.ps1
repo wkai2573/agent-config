@@ -1,19 +1,24 @@
 # Review the current git diff with Gemini through Google Antigravity CLI (agy).
-# Usage: pwsh -File gemini-review.ps1 [-Base <git ref>] [-Model <model id>] [-Focus <extra instruction>] [-TimeoutSec <n>]
+# Usage: pwsh -File gemini-review.ps1 [-Base <git ref>] [-Model <model id>] [-Focus <extra instruction>] [-TotalTimeoutSec <n>]
 param(
     [string]$Base = 'HEAD',
-    [string]$Model = 'gemini-3.8-flash-medium',
+    [string]$Model = 'gemini-3.8-flash-low',
     [string]$Focus,
-    [int]$TimeoutSec = 600,
-    [int]$MaxUntrackedKB = 100
+    [int]$TotalTimeoutSec = 300,
+    [int]$MaxDiffKB = 150,
+    [int]$MaxUntrackedKB = 50,
+    [int]$MaxUntrackedTotalKB = 100,
+    [int]$MaxReadFiles = 5
 )
 
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$startedAt = [Diagnostics.Stopwatch]::StartNew()
 
 # winget adds agy to PATH, but shells started before install may not see it
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
-if (-not (Get-Command agy -ErrorAction SilentlyContinue)) {
+$agy = Get-Command agy -ErrorAction SilentlyContinue
+if (-not $agy) {
     Write-Output 'REVIEW_FAILED: agy not found. Install with: winget install --id Google.AntigravityCLI -e'
     exit 1
 }
@@ -30,8 +35,16 @@ if ($LASTEXITCODE -ne 0) {
     Write-Output "REVIEW_FAILED: git diff failed for base '$Base'"
     exit 1
 }
+$diffBytes = [System.Text.Encoding]::UTF8.GetByteCount($diff)
+if ($diffBytes -gt ($MaxDiffKB * 1KB)) {
+    $diffKB = [math]::Round($diffBytes / 1KB)
+    Write-Output "TOO_LARGE: diff is ${diffKB}KB, limit is ${MaxDiffKB}KB. Narrow the scope with -Base, or review in smaller batches."
+    exit 1
+}
+
 $untracked = @(git -C $root ls-files --others --exclude-standard)
 $extra = New-Object System.Text.StringBuilder
+$extraBytes = 0
 foreach ($rel in $untracked) {
     $full = Join-Path $root $rel
     $file = Get-Item -LiteralPath $full -ErrorAction SilentlyContinue
@@ -40,11 +53,16 @@ foreach ($rel in $untracked) {
         [void]$extra.AppendLine("### new file (skipped, larger than ${MaxUntrackedKB}KB): $rel")
         continue
     }
+    if (($extraBytes + $file.Length) -gt ($MaxUntrackedTotalKB * 1KB)) {
+        [void]$extra.AppendLine("### new file (skipped, untracked total over ${MaxUntrackedTotalKB}KB): $rel")
+        continue
+    }
     $bytes = [System.IO.File]::ReadAllBytes($full)
     if ($bytes -contains 0) {
         [void]$extra.AppendLine("### new file (skipped, binary): $rel")
         continue
     }
+    $extraBytes += $bytes.Length
     [void]$extra.AppendLine("### new file: $rel")
     [void]$extra.AppendLine([System.Text.Encoding]::UTF8.GetString($bytes))
 }
@@ -57,14 +75,16 @@ if (-not $diff.Trim() -and $extra.Length -eq 0) {
 $focusLine = if ($Focus) { "Additional focus from the user: $Focus" } else { '' }
 $instructions = @"
 You are a strict code reviewer. Review ONLY the changes in the diff section below.
+You have a hard time limit, so work efficiently and finish with the review.
 
 Scope:
 - Report correctness problems only: logic errors, wrong conditions, off-by-one, null or undefined handling, broken error handling, race conditions, resource leaks, security issues, and behaviour that contradicts what the change clearly intends.
 - Do NOT report style, naming, formatting, missing comments, or refactoring and simplification suggestions.
-- You may read other files in the current working directory to confirm how changed code is used. Verify a suspicion against the real code before reporting it. Do not report something you could not confirm.
+- The diff already contains enough context for most judgements. Decide from the diff alone whenever you can.
+- Only when a suspicion truly depends on code outside the diff, you may read at most $MaxReadFiles other files in the current working directory. Do not browse or explore. Do not report something you could not confirm.
 - Do NOT modify any file, and do NOT run shell commands. Shell commands are denied in this session.
 - To inspect other files use only the read-only tools: view_file, grep_search, list_dir, find_by_name. Never use run_command, not even for git, grep, cat or Get-Content.
-- If any tool call is denied, do not retry it and do not stop. Continue with the read-only tools, or with the diff below, and always finish with the review in the required output format.
+- If any tool call is denied, do not retry it and do not stop. Continue with the diff below and always finish with the review in the required output format.
 $focusLine
 
 Output rules:
@@ -86,33 +106,73 @@ $($extra.ToString())
 
 $tmpDir = Join-Path $env:TEMP 'agy-review'
 New-Item -ItemType Directory -Force $tmpDir | Out-Null
+# A run killed from outside never reaches the finally block; sweep what it left behind
+Get-ChildItem $tmpDir -Filter 'review-*.md' -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-1) } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
 $promptFile = Join-Path $tmpDir ('review-' + [guid]::NewGuid().ToString('N') + '.md')
 [System.IO.File]::WriteAllText($promptFile, $instructions, (New-Object System.Text.UTF8Encoding($false)))
 
 # The file path is the only thing on the command line, so diff size and quoting never matter
 $command = "Read the file $promptFile and carry out the code review it describes. Reply with the review only."
 
-# agy sometimes tries run_command anyway; headless mode denies it and the run ends with no review.
-# That is intermittent, so retry once before reporting failure.
-$maxAttempts = 2
-Push-Location $root
+# Run agy under a hard deadline; kill the whole process tree when it overruns.
+function Invoke-Agy([int]$budgetSec) {
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $agy.Source
+    foreach ($a in @('-p', $command, '--model', $Model, '--add-dir', $tmpDir, '--print-timeout', "${budgetSec}s")) {
+        [void]$psi.ArgumentList.Add($a)
+    }
+    $psi.WorkingDirectory = $root
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $outTask = $proc.StandardOutput.ReadToEndAsync()
+    $errTask = $proc.StandardError.ReadToEndAsync()
+    # Give agy's own timeout a few seconds to report before the hard kill
+    $finished = $proc.WaitForExit(($budgetSec + 10) * 1000)
+    if (-not $finished) {
+        try { $proc.Kill($true) } catch {}
+        $proc.WaitForExit(5000) | Out-Null
+    }
+    [pscustomobject]@{
+        TimedOut = -not $finished
+        Code     = if ($finished) { $proc.ExitCode } else { -1 }
+        Output   = ($outTask.Result + $errTask.Result)
+    }
+}
+
+# Retry only for the intermittent "run_command denied" failure, and only with the time left.
+$result = $null
+$denied = $false
 try {
-    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-        $output = agy -p $command --model $Model --add-dir $tmpDir --print-timeout "${TimeoutSec}s" 2>&1 | Out-String
-        $code = $LASTEXITCODE
-        $denied = $output -match '^\s*jetski:.*(no output produced|auto-denied)'
-        if ($code -eq 0 -and $output.Trim() -and -not $denied) { break }
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        $remaining = [int]($TotalTimeoutSec - $startedAt.Elapsed.TotalSeconds)
+        if ($remaining -lt 30) { break }
+        $result = Invoke-Agy $remaining
+        $denied = $result.Output -match '(?m)^\s*jetski:.*(no output produced|auto-denied)'
+        if ($result.TimedOut -or -not $denied) { break }
     }
 } finally {
-    Pop-Location
     Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
 }
 
-if ($code -ne 0 -or -not $output.Trim() -or $denied) {
-    Write-Output "REVIEW_FAILED (exit $code)"
-    Write-Output $output
+if (-not $result) {
+    Write-Output "REVIEW_FAILED: no time budget left (${TotalTimeoutSec}s total)"
+    exit 1
+}
+if ($result.TimedOut) {
+    Write-Output "REVIEW_TIMEOUT: exceeded ${TotalTimeoutSec}s with model $Model. Narrow the scope with -Base or -Focus; do not rerun unchanged."
+    exit 1
+}
+if ($result.Code -ne 0 -or -not $result.Output.Trim() -or $denied) {
+    Write-Output "REVIEW_FAILED (exit $($result.Code))"
+    Write-Output $result.Output
     exit 1
 }
 
-Write-Output "[gemini-review model=$Model base=$Base]"
-Write-Output $output.Trim()
+Write-Output "[gemini-review model=$Model base=$Base elapsed=$([int]$startedAt.Elapsed.TotalSeconds)s]"
+Write-Output $result.Output.Trim()

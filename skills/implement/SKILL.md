@@ -12,4 +12,6 @@ disable-model-invocation: true
 
 完成後，在 commit 之前執行 /gemini-review 審查這項工作，只收問題清單。
 
-把你的工作 commit 到目前的分支。
+回到票券檔案，把已完成的項目勾起來。需要人工操作才能確認的項目不要自行勾選，留給使用者確認。票券的項目全部勾完時，把 `Status` 改成 `done`。
+
+把你的工作連同票券的更新一起 commit 到目前的分支。
