@@ -12,7 +12,7 @@
 | `config/claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | 複製 |
 | `config/claude/settings.json` | `~/.claude/settings.json` | 複製 |
 | `memory/` | `~/.claude/projects/<家目錄編碼>/memory` | 連結 |
-| `agents/` | `~/.claude/agents` | 連結（自訂 subagent，目前有 `mechanical-check`） |
+| `agents/` | `~/.claude/agents` | 連結（自訂 subagent，目前有 `mechanical-check` 與 `code-explorer`） |
 | `mods/<名稱>/` | `~/.claude/dev-mods/synced/<名稱>` | 連結 |
 | `gemini/skills.json` | `~/.gemini/config/skills.json` | 參考（腳本會補上指向 `~/.claude/skills` 的設定） |
 | `install.ps1` / `install.sh` | | 新電腦安裝 |
@@ -84,7 +84,7 @@ git -C $HOME\agent-config pull
 ## 注意
 
 - **memory**：Claude Code 的 memory 本來就是依專案分開存放，沒有真正的全域 memory，這裡只同步在家目錄開啟 Claude Code 時用的那一份。其餘專案的 memory 不同步。
-- **agents**：放的是 subagent 定義檔，不是 skill，所以不會出現在 `/my-skills` 清單。`mechanical-check` 固定用 Haiku 跑測試、型別檢查、lint，只回報不修改，搭配 `config/claude/CLAUDE.md` 裡的「檢查委派」規則讓 Claude 自動委派。
+- **agents**：放的是 subagent 定義檔，不是 skill，所以不會出現在 `/my-skills` 清單。`mechanical-check` 固定用 Haiku 跑測試、型別檢查、lint，只回報不修改，搭配 `config/claude/CLAUDE.md` 裡的「檢查委派」規則讓 Claude 自動委派。`code-explorer` 固定用 Haiku 唯讀探索，只回報結論與 `檔案:行號` 引用，搭配「探索委派」規則。
 - **mods**：`export.ps1` 會從 `~/.claude/dev-mods/*/` 收集含 `.claude-plugin/plugin.json` 的 mod（排除引擎產生的 `types/`）。連結後的 mod 位於 `~/.claude/dev-mods/synced/`，在新電腦要用 `claude --plugin-dir` 指到該資料夾載入。
 - **settings.json**：若內含外部工具自動寫入、寫死本機路徑的 hooks，跨電腦會失效；同步前先確認內容是通用的。
 - 新增 skill：在 `skills/` 下建資料夾（含 `SKILL.md`），重跑一次 `install` 才會建立連結。
