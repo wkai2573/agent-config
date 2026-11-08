@@ -5,7 +5,7 @@ description: 使用者說「幫我開 ComfyUI」「開 comfyui」「啟動 Comfy
 
 # 開啟本機 ComfyUI
 
-使用者的 ComfyUI 是官方 Portable 版，裝在 `D:\ComfyUI\ComfyUI_windows_portable`，網頁介面固定在 `http://127.0.0.1:8188`。流程是：檢查、必要時啟動、等就緒、開瀏覽器。全程用 PowerShell。
+使用者的 ComfyUI 是官方 Portable 版，裝在 `D:\AI\ComfyUI\ComfyUI_windows_portable`，網頁介面固定在 `http://127.0.0.1:8188`。流程是：檢查、必要時啟動、等就緒、開瀏覽器。全程用 PowerShell。
 
 ## 流程
 
@@ -20,9 +20,9 @@ description: 使用者說「幫我開 ComfyUI」「開 comfyui」「啟動 Comfy
 2. **啟動**：用 Portable 內建的 Python 直接啟動，視窗隱藏，輸出寫進暫存資料夾的記錄檔。加 `--disable-auto-launch`，瀏覽器改由第 4 步統一開，避免開出兩個分頁。不要用 `run_nvidia_gpu.bat` 開可見的終端機視窗：實測行程可能卡住不前進，等了 14 分鐘都沒開始監聽埠，改成隱藏視窗加記錄檔後約 40 秒就起來。
 
    ```powershell
-   Start-Process -FilePath 'D:\ComfyUI\ComfyUI_windows_portable\python_embeded\python.exe' `
+   Start-Process -FilePath 'D:\AI\ComfyUI\ComfyUI_windows_portable\python_embeded\python.exe' `
      -ArgumentList '-u','-s','ComfyUI\main.py','--windows-standalone-build','--disable-auto-launch' `
-     -WorkingDirectory 'D:\ComfyUI\ComfyUI_windows_portable' `
+     -WorkingDirectory 'D:\AI\ComfyUI\ComfyUI_windows_portable' `
      -RedirectStandardOutput "$env:TEMP\comfyui.out.log" -RedirectStandardError "$env:TEMP\comfyui.err.log" `
      -WindowStyle Hidden
    ```
