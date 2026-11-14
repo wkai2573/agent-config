@@ -2,7 +2,7 @@
 # Usage: pwsh -File gemini-review.ps1 [-Base <git ref>] [-Model <model id>] [-Focus <extra instruction>] [-TotalTimeoutSec <n>]
 param(
     [string]$Base = 'HEAD',
-    [string]$Model = 'gemini-3.8-flash-low',
+    [string]$Model = 'gemini-4-hydrogen-low',
     [string]$Focus,
     [int]$TotalTimeoutSec = 300,
     [int]$MaxDiffKB = 150,

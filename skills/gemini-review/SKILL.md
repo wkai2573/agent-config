@@ -19,7 +19,7 @@ description: 用 Gemini 審查目前的 git 變更，只找正確性問題並回
    - 預設審查「目前工作區相對於 HEAD 的所有變更」，包含已暫存、未暫存與尚未追蹤的新檔，所以應該在 commit 之前執行。
    - `-Base <git ref>`：改成相對於某個分支或 commit 審查，例如整個功能分支相對於主分支。
    - `-Focus "<一句話>"`：使用者有特別在意的面向時帶入。
-   - `-Model <模型代號>`：預設 `gemini-3.8-flash-low`（最快）。可用的模型用 `agy models` 查。要更仔細改 `gemini-3.8-flash-medium` 或 `-high`，但耗時會明顯變長。
+   - `-Model <模型代號>`：預設 `gemini-4-hydrogen-low`（最快）。可用的模型用 `agy models` 查。要更仔細改 `gemini-4-hydrogen-medium`、`-high` 或 `-xhigh`，但耗時會明顯變長。
    - `-TotalTimeoutSec <秒>`：整次審查含重試的總期限，預設 300 秒，超過會強制終止 agy。
    - 變更大小有上限：diff 超過 150KB 會直接回 `TOO_LARGE`；未追蹤新檔單檔 50KB、合計 100KB，超過的會被略過並在提示詞中註明。
 
